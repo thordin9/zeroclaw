@@ -111,8 +111,10 @@ impl ApprovalManager {
     ///
     /// Returns `true` if the call needs a prompt, `false` if it can proceed.
     pub fn needs_approval(&self, tool_name: &str) -> bool {
-        // Full autonomy never prompts.
-        if self.autonomy_level == AutonomyLevel::Full {
+        // Full and Yolo autonomy never prompts.
+        if self.autonomy_level == AutonomyLevel::Full
+            || self.autonomy_level == AutonomyLevel::Yolo
+        {
             return false;
         }
 
@@ -279,6 +281,13 @@ mod tests {
         }
     }
 
+    fn yolo_config() -> AutonomyConfig {
+        AutonomyConfig {
+            level: AutonomyLevel::Yolo,
+            ..AutonomyConfig::default()
+        }
+    }
+
     // ── needs_approval ───────────────────────────────────────
 
     #[test]
@@ -317,6 +326,16 @@ mod tests {
         };
         let mgr = ApprovalManager::from_config(&config);
         assert!(!mgr.needs_approval("shell"));
+    }
+
+    #[test]
+    fn yolo_autonomy_never_prompts() {
+        let mgr = ApprovalManager::from_config(&yolo_config());
+        // Yolo mode should never prompt, even for always_ask tools or unknown tools.
+        assert!(!mgr.needs_approval("shell"));
+        assert!(!mgr.needs_approval("file_write"));
+        assert!(!mgr.needs_approval("anything"));
+        assert!(!mgr.needs_approval("rm_rf"));
     }
 
     // ── session allowlist ────────────────────────────────────
@@ -506,6 +525,15 @@ mod tests {
         let mgr = ApprovalManager::for_non_interactive(&config);
         // ReadOnly blocks execution elsewhere; approval manager does not prompt.
         assert!(!mgr.needs_approval("shell"));
+    }
+
+    #[test]
+    fn non_interactive_yolo_never_needs_approval() {
+        let mgr = ApprovalManager::for_non_interactive(&yolo_config());
+        // Yolo mode should never need approval, even in non-interactive mode.
+        assert!(!mgr.needs_approval("shell"));
+        assert!(!mgr.needs_approval("file_write"));
+        assert!(!mgr.needs_approval("anything"));
     }
 
     #[test]

@@ -13,4 +13,8 @@ pub enum AutonomyLevel {
     Supervised,
     /// Full: autonomous execution within policy bounds
     Full,
+    /// Yolo: maximum autonomy — all commands and tools execute without
+    /// confirmation or security policy restrictions. All path, command,
+    /// and risk checks are bypassed.
+    Yolo,
 }

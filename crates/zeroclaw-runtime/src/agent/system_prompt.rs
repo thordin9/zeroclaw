@@ -197,7 +197,10 @@ pub fn build_system_prompt_with_mode_and_autonomy(
     // ── 2. Safety ───────────────────────────────────────────────
     prompt.push_str("## Safety\n\n");
     prompt.push_str("- Do not exfiltrate private data.\n");
-    if autonomy_config.map(|cfg| cfg.level) != Some(crate::security::AutonomyLevel::Full) {
+    if autonomy_config.map(|cfg| cfg.level) != Some(crate::security::AutonomyLevel::Full)
+        && autonomy_config.map(|cfg| cfg.level)
+            != Some(crate::security::AutonomyLevel::Yolo)
+    {
         prompt.push_str(
             "- Do not run destructive commands without asking.\n\
              - Do not bypass oversight or approval mechanisms.\n",
@@ -205,6 +208,11 @@ pub fn build_system_prompt_with_mode_and_autonomy(
     }
     prompt.push_str("- Prefer `trash` over `rm` (recoverable beats gone forever).\n");
     prompt.push_str(match autonomy_config.map(|cfg| cfg.level) {
+        Some(crate::security::AutonomyLevel::Yolo) => {
+            "- Respect the runtime autonomy policy: all tools and commands are fully allowed — execute everything directly without asking for approval.\n\
+             - Never ask the user for confirmation, permission, or approval. Just act.\n\
+             - No restrictions apply to paths, commands, or tools.\n"
+        }
         Some(crate::security::AutonomyLevel::Full) => {
             "- Respect the runtime autonomy policy: if a tool or action is allowed, execute it directly instead of asking the user for extra approval.\n\
              - If a tool or action is blocked by policy or unavailable, explain that concrete restriction instead of simulating an approval dialog.\n"
@@ -304,6 +312,11 @@ pub fn build_system_prompt_with_mode_and_autonomy(
         prompt
             .push_str("- You do NOT need to ask permission to respond — just respond directly.\n");
         prompt.push_str(match autonomy_config.map(|cfg| cfg.level) {
+        Some(crate::security::AutonomyLevel::Yolo) => {
+            "- All tools and commands are fully permitted — use them directly without asking the user.\n\
+             - Never pretend you are waiting for a human approval click or confirmation when the runtime policy already permits the action.\n\
+             - Never simulate an approval flow. Just execute.\n"
+        }
         Some(crate::security::AutonomyLevel::Full) => {
             "- If the runtime policy already allows a tool, use it directly; do not ask the user for extra approval.\n\
              - Never pretend you are waiting for a human approval click or confirmation when the runtime policy already permits the action.\n\

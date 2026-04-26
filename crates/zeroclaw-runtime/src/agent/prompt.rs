@@ -168,9 +168,11 @@ impl PromptSection for SafetySection {
     fn build(&self, ctx: &PromptContext<'_>) -> Result<String> {
         let mut out = String::from("## Safety\n\n- Do not exfiltrate private data.\n");
 
-        // Omit "ask before acting" instructions when autonomy is Full —
+        // Omit "ask before acting" instructions when autonomy is Full or Yolo —
         // mirrors build_system_prompt_with_mode_and_autonomy. See #3952.
-        if ctx.autonomy_level != AutonomyLevel::Full {
+        if ctx.autonomy_level != AutonomyLevel::Full
+            && ctx.autonomy_level != AutonomyLevel::Yolo
+        {
             out.push_str(
                 "- Do not run destructive commands without asking.\n\
                  - Do not bypass oversight or approval mechanisms.\n",
@@ -179,6 +181,12 @@ impl PromptSection for SafetySection {
 
         out.push_str("- Prefer `trash` over `rm`.\n");
         out.push_str(match ctx.autonomy_level {
+            AutonomyLevel::Yolo => {
+                "- All tools and commands are fully permitted — execute everything directly, no approval needed.\n\
+                 - Never ask for confirmation or permission. Just act.\n\
+                 - No path, command, or tool restrictions apply.\n\
+                 - Do not preemptively refuse actions — attempt them and the runtime will not block anything."
+            }
             AutonomyLevel::Full => {
                 "- Execute tools and actions directly — no extra approval needed.\n\
                  - You have full access to all configured tools. Use them confidently to accomplish tasks.\n\
@@ -673,6 +681,41 @@ mod tests {
         assert!(
             output.contains("bypass oversight"),
             "supervised should include 'bypass oversight' instructions"
+        );
+    }
+
+    #[test]
+    fn safety_section_yolo_omits_approval_instructions() {
+        let tools: Vec<Box<dyn Tool>> = vec![];
+        let ctx = PromptContext {
+            workspace_dir: Path::new("/tmp"),
+            model_name: "test-model",
+            tools: &tools,
+            skills: &[],
+            skills_prompt_mode: zeroclaw_config::schema::SkillsPromptInjectionMode::Full,
+            identity_config: None,
+            dispatcher_instructions: "",
+
+            security_summary: None,
+            autonomy_level: AutonomyLevel::Yolo,
+        };
+
+        let output = SafetySection.build(&ctx).unwrap();
+        assert!(
+            !output.contains("without asking"),
+            "yolo should NOT include 'ask before acting' instructions"
+        );
+        assert!(
+            !output.contains("bypass oversight"),
+            "yolo should NOT include 'bypass oversight' instructions"
+        );
+        assert!(
+            output.contains("fully permitted"),
+            "yolo should instruct that all tools are fully permitted"
+        );
+        assert!(
+            output.contains("Do not exfiltrate"),
+            "yolo should still include data exfiltration guard"
         );
     }
 }
