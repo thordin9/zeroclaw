@@ -983,6 +983,11 @@ impl SecurityPolicy {
         command: &str,
         approved: bool,
     ) -> Result<CommandRiskLevel, String> {
+        // Yolo mode: bypass all command validation.
+        if self.autonomy == AutonomyLevel::Yolo {
+            return Ok(CommandRiskLevel::Low);
+        }
+
         if !self.is_command_allowed(command) {
             return Err(format!("Command not allowed by security policy: {command}"));
         }
@@ -1078,6 +1083,11 @@ impl SecurityPolicy {
     pub fn is_command_allowed(&self, command: &str) -> bool {
         if self.autonomy == AutonomyLevel::ReadOnly {
             return false;
+        }
+
+        // Yolo mode: bypass all command restrictions.
+        if self.autonomy == AutonomyLevel::Yolo {
+            return true;
         }
 
         // When the operator has explicitly opted out of all command-level
@@ -1326,6 +1336,11 @@ impl SecurityPolicy {
 
     /// Check if a file path is allowed (no path traversal, within workspace)
     pub fn is_path_allowed(&self, path: &str) -> bool {
+        // Yolo mode: bypass all path restrictions.
+        if self.autonomy == AutonomyLevel::Yolo {
+            return true;
+        }
+
         // Block null bytes (can truncate paths in C-backed syscalls)
         if path.contains('\0') {
             return false;
@@ -1392,6 +1407,11 @@ impl SecurityPolicy {
     /// Validate that a resolved path is inside the workspace or an allowed root.
     /// Call this AFTER joining `workspace_dir` + relative path and canonicalizing.
     pub fn is_resolved_path_allowed(&self, resolved: &Path) -> bool {
+        // Yolo mode: bypass all path restrictions.
+        if self.autonomy == AutonomyLevel::Yolo {
+            return true;
+        }
+
         // Prefer canonical workspace root so `/a/../b` style config paths don't
         // cause false positives or negatives.
         let workspace_root = self
@@ -1575,11 +1595,14 @@ impl SecurityPolicy {
         autonomy_config: &crate::schema::AutonomyConfig,
         workspace_dir: &Path,
     ) -> Self {
-        // When autonomy is Full, disable workspace_only so the agent can
+        // When autonomy is Full or Yolo, disable workspace_only so the agent can
         // access paths outside the workspace.  Forbidden-path checks still
-        // apply, preventing access to sensitive system directories.
+        // apply for Full, preventing access to sensitive system directories.
+        // For Yolo, all path checks are bypassed at the is_path_allowed level.
         // See issue #5463.
-        let effective_workspace_only = if autonomy_config.level == AutonomyLevel::Full {
+        let effective_workspace_only = if autonomy_config.level == AutonomyLevel::Full
+            || autonomy_config.level == AutonomyLevel::Yolo
+        {
             false
         } else {
             autonomy_config.workspace_only

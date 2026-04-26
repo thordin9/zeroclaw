@@ -139,7 +139,7 @@ impl TrustTracker {
         }
 
         match base_level {
-            "full" => "supervised".to_string(),
+            "full" | "yolo" => "supervised".to_string(),
             "supervised" => "read_only".to_string(),
             // read_only and unknown levels stay as-is (can't reduce further)
             _ => base_level.to_string(),
