@@ -1131,8 +1131,6 @@ data: [DONE]
     #[test]
     fn capabilities_includes_vision() {
         let options = ProviderRuntimeOptions {
-            provider_api_url: None,
-            zeroclaw_dir: None,
             secrets_encrypt: false,
             auth_profile_override: None,
             reasoning_enabled: None,
@@ -1143,6 +1141,12 @@ data: [DONE]
             provider_max_tokens: None,
             merge_system_into_user: false,
             provider_extra: None,
+            native_tools: None,
+            wire_api: None,
+            provider_api_url: None,
+            zeroclaw_dir: None,
+            think: None,
+            chat_template_kwargs: None,
         };
         let provider =
             OpenAiCodexProvider::new(&options, None).expect("provider should initialize");
